@@ -191,7 +191,7 @@ SELECT * FROM EMPLEADOS_PRACTICA;
 ----------------------------------------------------------------
 EXCEPTION
         WHEN NO_DATA_FOUND THEN
-        RAISE_APPLICATION_ERROR(-20001, 'Empleado inexistente');
+            RAISE_APPLICATION_ERROR(-20001, 'Empleado inexistente');
 		WHEN PROGRAM_ERROR THEN
 			RAISE_APPLICATION_ERROR(-20002,'ERROR DE PROGRAMA Y/O ASIGNACION DE VARIABLES');
 		WHEN STORAGE_ERROR THEN
@@ -583,11 +583,10 @@ BEGIN
 END;
 
 
+
 /*
 EJERCICIO 1 - REGISTRO DE EMPLEADOS CON SUELDO REAJUSTADO
 
-Se solicita crear la tabla E1_EMPLEADOS con los campos ID_EMPLEADO NUMBER como clave
-primaria, NOMBRE VARCHAR2(50), TELEFONO VARCHAR2(20) y SUELDO NUMBER(10,2).
 
 Cree una funcion llamada E1_CALCULAR_SUELDO que reciba un sueldo base y un porcentaje
 de aumento, y retorne el sueldo resultante redondeado a dos decimales. El sueldo base
@@ -607,6 +606,87 @@ correctos y rechazos por nombre no informado, sueldo invalido y porcentaje fuera
 del rango permitido. Compruebe que los intentos rechazados no agreguen empleados.
 */
 
+
+CREATE TABLE E1_EMPLEADOS(
+    ID_EMPLEADO NUMBER,
+    NOMBRE VARCHAR2(50),
+    TELEFONO VARCHAR2(20),
+    SUELDO NUMBER(10,2),
+    CONSTRAINT PK_ID_EMPLEADO1 PRIMARY KEY (ID_EMPLEADO)
+);
+
+CREATE OR REPLACE FUNCTION E1_CALCULAR_SUELDO(
+    P_SUELDOBASE NUMBER,
+    P_PORCENTAJE NUMBER
+
+) RETURN NUMBER
+IS
+   SUELDO_ACT NUMBER;
+BEGIN
+    
+    IF (P_SUELDOBASE > 0 AND (P_PORCENTAJE BETWEEN 0 AND 20)) THEN
+        SUELDO_ACT := P_SUELDOBASE + (P_SUELDOBASE * P_PORCENTAJE)/100;
+        RETURN ROUND(SUELDO_ACT,2);
+    ELSE
+        IF (P_SUELDOBASE IS NULL OR P_SUELDOBASE <= 0) THEN
+            RAISE_APPLICATION_ERROR(-20005, 'Sueldo base invalido');
+        ELSE
+            RAISE_APPLICATION_ERROR(-20006, 'Porcentaje invalido');
+        END IF;
+    END IF;
+       
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RAISE_APPLICATION_ERROR(-20000, 'Dato no existe');
+        WHEN STORAGE_ERROR THEN
+            RAISE_APPLICATION_ERROR(-20001, 'Memoria ocupada o corrupta');
+        WHEN PROGRAM_ERROR THEN
+            RAISE_APPLICATION_ERROR(-20002, 'Error de programa');
+        WHEN ROWTYPE_MISMATCH THEN
+            RAISE_APPLICATION_ERROR(-20003, 'Asignacion de variables');
+        WHEN OTHERS THEN
+            RAISE_APPLICATION_ERROR(-20004, 'Otro error');
+
+END;
+
+CREATE SEQUENCE E1_SEQ_EMPLEADO
+    START WITH 1
+    INCREMENT BY 1
+    MAXVALUE 9999
+    MINVALUE 1
+    NOCYCLE;
+
+CREATE OR REPLACE PROCEDURE E1_REGISTAR_EMPLEADO(
+    P_NAME VARCHAR2,
+    P_PHONE VARCHAR2,
+    P_SALDO NUMBER,
+    P_PORCENTAJE NUMBER
+)
+IS
+    NAME_MAYUS VARCHAR2(50);
+BEGIN
+    NAME_MAYUS := UPPER(TRIM(P_NAME));
+    INSERT INTO E1_EMPLEADOS(ID_EMPLEADO, NOMBRE, TELEFONO, SUELDO) 
+    VALUES (E1_SEQ_EMPLEADO.NEXTVAL, NAME_MAYUS, P_PHONE, E1_CALCULAR_SUELDO(P_SALDO, P_PORCENTAJE));
+    COMMIT;
+    EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20000, 'Dato no existe');
+    WHEN STORAGE_ERROR THEN
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20001, 'Memoria ocupada o corrupta');
+    WHEN PROGRAM_ERROR THEN
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20002, 'Error de programa');
+    WHEN ROWTYPE_MISMATCH THEN
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20003, 'Asignacion de variables');
+    WHEN OTHERS THEN
+        AISE_APPLICATION_ERROR(-20004, 'Otro error');
+        ROLLBACK;
+
+END;
 
 /*
 EJERCICIO 2 - REAJUSTE SEGUN ANTIGUEDAD
